@@ -1,0 +1,129 @@
+titanic_wide <- data.frame(Titanic)
+head(titanic_wide)
+library(tidyverse)
+library(ggalluvial)
+
+#>   Class    Sex   Age Survived Freq
+#> 1   1st   Male Child       No    0
+#> 2   2nd   Male Child       No    0
+#> 3   3rd   Male Child       No   35
+#> 4  Crew   Male Child       No    0
+#> 5   1st Female Child       No    0
+#> 6   2nd Female Child       No    0
+ggplot(data = titanic_wide,
+       aes(axis1 = Class, axis2 = Sex, axis3 = Age,
+           y = Freq)) +
+  scale_x_discrete(limits = c("Class", "Sex", "Age"), expand = c(.2, .05)) +
+  xlab("Demographic") +
+  geom_alluvium(aes(fill = Survived)) +
+  geom_stratum() +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  theme_minimal() +
+  ggtitle("passengers on the maiden voyage of the Titanic",
+          "stratified by demographics and survival")
+
+
+
+library(alluvial)
+library(nycflights13)
+
+libs <- c('dplyr', 'stringr', 'forcats',     # wrangling
+          'knitr','kableExtra',               # table styling
+          'ggplot2','alluvial','ggalluvial',  # plots
+          'nycflights13')                     # data
+invisible(lapply(libs, library, character.only = TRUE))
+
+
+
+
+
+top_dest <- flights %>%
+  count(dest) %>%
+  top_n(5, n) %>%
+  pull(dest)
+
+top_carrier <- flights %>%
+  filter(dest %in% top_dest) %>%
+  count(carrier) %>%
+  top_n(4, n) %>%
+  pull(carrier)
+
+fly <- flights %>%
+  filter(dest %in% top_dest & carrier %in% top_carrier) %>%
+  count(origin, carrier, dest) %>%
+  mutate(origin = fct_relevel(as.factor(origin), c("EWR", "LGA", "JFK")))
+
+alluvial(fly %>% select(-n),
+         freq=fly$n, border=NA, alpha = 0.5,
+         col=case_when(fly$origin == "JFK" ~ "red",
+                       fly$origin == "EWR" ~ "blue",
+                       TRUE ~ "orange"),
+         cex=0.75,
+         axis_labels = c("Origin", "Carrier", "Destination"),
+         hide = fly$n < 150)
+
+
+# install.packages("devtools")
+#devtools::install_github("erblast/easyalluvial")
+library(easyalluvial)
+
+suppressPackageStartupMessages( require(easyalluvial) )
+suppressPackageStartupMessages( require(tidyverse) )
+data_wide = as_tibble(mtcars)
+categoricals = c('cyl', 'vs', 'am', 'gear', 'carb')
+numericals = c('mpg', 'cyl', 'disp', 'hp', 'drat', 'wt', 'qsec')
+
+data_wide = data_wide %>%
+  mutate_at( vars(categoricals), as.factor ) %>%
+  mutate( car_id = row_number() )
+
+knitr::kable( head(data_wide) )
+
+alluvial_wide(data_wide
+              , bins = 5 # Default
+              , bin_labels = c('LL','ML','M','MH','HH') # Default
+              , fill_by = 'all_flows'
+)
+
+################################3#############
+
+knitr::kable( head(mtcars2) )
+alluvial_wide( data = mtcars2
+               , max_variables = 5
+               , fill_by = 'first_variable' )
+
+knitr::kable( head(quarterly_flights) )
+alluvial_long( quarterly_flights
+               , key = qu
+               , value = mean_arr_delay
+               , id = tailnum
+               , fill = carrier )
+
+alluvial_wide( data = mtcars2
+               , max_variables = 5
+               , fill_by = 'first_variable' ) %>%
+  add_marginal_histograms(mtcars2)
+
+suppressPackageStartupMessages( require(parcats) )
+
+p = alluvial_wide(mtcars2, max_variables = 5)
+
+
+library(parcats)
+parcats(p, marginal_histograms = TRUE, data_input = mtcars2)
+
+
+df = select(mtcars2, -ids)
+
+m = parsnip::rand_forest(mode = "regression") %>%
+  parsnip::set_engine("randomForest") %>%
+  parsnip::fit(disp ~ ., df)
+
+p = alluvial_model_response_parsnip(m, df, degree = 4, method = "pdp")
+#> Getting partial dependence plot preditions. This can take a while. See easyalluvial::get_pdp_predictions() `Details` on how to use multiprocessing
+
+p_grid = add_marginal_histograms(p, df, plot = F) %>%
+  add_imp_plot(p, df)
+
+
+parcats(p, marginal_histograms = TRUE, imp = TRUE, data_input = df)
